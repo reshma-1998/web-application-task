@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp-deployment
+  labels:
+    app: webapp
+spec:
+  replicas: 2  # Adjust the number of replicas as needed
+  selector:
+    matchLabels:
+      app: webapp
+  template:
+    metadata:
+      labels:
+        app: webapp
+    spec:
+      containers:
+      - name: webapp
+        image: your-dockerhub-username/webapp:latest  # Replace with your actual image
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DJANGO_SETTINGS_MODULE
+          value: "your_project.settings"  # Adjust according to your project
+        command: ["/bin/bash", "-c", "source venv1/bin/activate && python3 manage.py runserver 0.0.0.0:8000"]
+        volumeMounts:
+        - name: app-storage
+          mountPath: /app
+      volumes:
+      - name: app-storage
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-service
+spec:
+  selector:
+    app: webapp
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: LoadBalancer  # Change to NodePort if not using a cloud provider
+  
+
+sudo apt update
+sudo apt install -y openjdk-11-jdk
+java -version  # Verify installation
+
+
+wget -q -O - https://pkg.jenkins.io/debian-stable/jenkins.io.key | sudo apt-key add -
+sudo sh -c 'echo deb http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
+sudo apt update
+sudo apt install -y jenkins
+
+
+sudo systemctl start jenkins
+sudo systemctl enable jenkins
+
+
+sudo systemctl status jenkins
+
+
+Open a browser and go to:
+vbnet
+Copy
+Edit
+http://your-ec2-public-ip:8080
+Get the Jenkins initial password:
+sh
+Copy
+Edit
+sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+Paste the password in the Jenkins setup screen.
+Follow the setup wizard:
+Install suggested plugins.
+Create an admin user.
+
+
+
+jenkins
+
+
+
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "django-app"
+        CONTAINER_NAME = "django_container"
+    }
+
+    stages {
+        stage('Clone Repository') {
+            steps {
+                git 'https://github.com/your-repo.git'  // Replace with your repo
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    sh "docker build -t ${IMAGE_NAME} ."
+                }
+            }
+        }
+
+        stage('Run Container') {
+            steps {
+                script {
+                    sh "docker stop ${CONTAINER_NAME} || true"
+                    sh "docker rm ${CONTAINER_NAME} || true"
+                    sh "docker run -d -p 8000:8000 --name ${CONTAINER_NAME} ${IMAGE_NAME}"
+                }
+            }
+        }
+
+        stage('Post Deployment Checks') {
+            steps {
+                script {
+                    sh "docker ps | grep ${CONTAINER_NAME}"
+                }
+            }
+        }
+    }
+}
